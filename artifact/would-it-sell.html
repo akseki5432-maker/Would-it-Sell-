@@ -142,8 +142,7 @@
       </div>
       <div class="label">Example scorecard</div>
       <div id="example"></div>
-      <div class="note" id="notice">The analyst works from Claude's own market knowledge, which can be out of date, and
-        cannot browse the web from this page. It flags what you should verify. Replies use your Claude account's usage.</div>
+      <div class="note" id="notice" hidden></div>
     </section>
   </div>
 </main>
@@ -176,11 +175,15 @@ const RULES = `You are "Would it Sell?", a friendly, candid market analyst insid
 over an ongoing conversation.
 
 How to work:
-- Talk like a sharp advisor. Keep replies focused: short paragraphs, bullets, bold key numbers. Reply in the user's language.
+- Talk like a sharp advisor. Get straight to the answer, with no preamble. Keep replies focused: short paragraphs, \
+bullets, bold key numbers. Reply in the user's language.
+- Never talk about yourself, your model, your tools, your training data, browsing, or what you can or can't access, and \
+never add AI disclaimers. If asked who you are, you are the Would it Sell? analyst.
 - If a crucial detail is missing (where they sell, target customer, budget, price), ask one or two quick questions. \
 If the idea is clear enough, give your read right away and ask while you share it.
-- You cannot browse the web here. Use what you know about the market, competitors and typical prices, say roughly \
-how current that knowledge is, and list the specific facts the user should verify (competitor prices, permits, demand checks).
+- Answer directly and confidently from what you know about the market, competitors and typical prices. Give numbers \
+as realistic ranges. Don't claim you looked something up live. When a fact really decides the outcome (a permit, a \
+competitor's current price), list confirming it as a next step, in one line.
 - When you discuss price, costs or profit and the unit_economics tool is available, use it for exact numbers.
 - After you have evaluated an idea properly, include ONE scorecard block in your reply, exactly in this format \
 (the app hides it and shows a visual card, so don't repeat its contents in prose):
@@ -195,8 +198,8 @@ how current that knowledge is, and list the specific facts the user should verif
 Competition: 10 means an open market, 0 means saturated with strong, cheap players. The app computes the overall score \
 (weights: demand 30%, monetization 25%, competition, feasibility and timing 15% each). After the block, explain the \
 verdict briefly. Score again with a new block whenever the idea changes meaningfully.
-- Be honest. Say clearly when the evidence points against an idea and suggest pivots that could work. Nobody can \
-predict success, so always end an evaluation with cheap ways to test it with real customers.`;
+- Be honest. Say clearly when the evidence points against an idea and suggest pivots that could work. End every \
+evaluation with cheap ways to test it with real customers.`;
 
 const EXAMPLE = {
   idea_summary: "Mobile coffee cart serving office parks in Austin", category: "business", confidence: "medium",
@@ -391,11 +394,11 @@ function stepsBox(parent) {
 }
 
 const ERRORS = {
-  not_granted: "Claude access wasn't allowed for this page. Reload the page to be asked again.",
-  sampling_disabled: "Claude isn't available for this account.",
+  not_granted: "Chat access wasn't allowed. Reload the page to allow it.",
+  sampling_disabled: "Chat isn't available for this account.",
   rate_limited: "You've hit a usage limit. Wait a little, then send again.",
-  session_expired: "Your Claude session expired. Sign in again, then reload.",
-  refused: "Claude declined that request. Try rephrasing it.",
+  session_expired: "Your session expired. Sign in again, then reload.",
+  refused: "That request couldn't be answered. Try rephrasing it.",
   prompt_too_large: "This chat got too long. Start a new chat.",
   empty_completion: "No reply came back. Try rephrasing.",
 };
@@ -476,12 +479,13 @@ if (turns.length) {
   for (const t of turns) t.role === "user" ? addUserBubble(t.content) : addBotBubble(t.content);
   scrollDown(true);
 }
-input.disabled = true; sendBtn.disabled = true; input.placeholder = "Connecting to Claude...";
+input.disabled = true; sendBtn.disabled = true; input.placeholder = "Loading...";
 (async () => {
   try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
   if (!sample) {
-    disableChat("Open this page inside Claude to chat.");
-    $("notice").textContent = "Chat works when this page is opened on claude.ai, where it can use your Claude account.";
+    disableChat("Chat is unavailable right now.");
+    $("notice").textContent = "Chat is unavailable right now. Open this page from its link while signed in.";
+    $("notice").hidden = false;
     return;
   }
   try { toolsAvailable = !!(await sample.limits())?.tools; } catch { toolsAvailable = false; }
