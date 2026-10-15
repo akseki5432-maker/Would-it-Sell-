@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Would it Sell?</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%231f6f5c'/%3E%3Ctext x='16' y='23' font-size='20' text-anchor='middle' fill='white' font-family='sans-serif'%3E$%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1b; --muted: #6b6a65; --line: #e4e2db;
+    --accent: #1f6f5c; --accent-ink: #ffffff; --user: #1f6f5c; --user-ink: #ffffff;
+    --go: #1f8a4c; --promising: #3b7dd8; --risky: #d48a1a; --unlikely: #c2412d;
+    --bar-bg: #ecebe6; --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151614; --panel: #1e201d; --ink: #ecebe6; --muted: #9a9890; --line: #2e302c;
+      --accent: #4fb89a; --accent-ink: #0f1a16; --user: #2a5c4f; --user-ink: #ecebe6;
+      --go: #4cc37f; --promising: #6aa5f0; --risky: #f0ad4e; --unlikely: #ef6f5a;
+      --bar-bg: #2a2c28; --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    display: flex; flex-direction: column;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  .logo {
+    width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 16px;
+  }
+  button { font: inherit; cursor: pointer; }
+  .ghost {
+    background: transparent; border: 1px solid var(--line); color: var(--ink);
+    padding: 6px 14px; border-radius: 999px;
+  }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+  main { flex: 1; overflow-y: auto; }
+  .thread { max-width: 820px; margin: 0 auto; padding: 24px 16px 40px; }
+  .empty { text-align: center; padding: 8vh 0 0; }
+  .empty h1 { font-size: clamp(28px, 5vw, 40px); margin: 0 0 8px; letter-spacing: -0.02em; }
+  .empty p { color: var(--muted); margin: 0 auto 28px; max-width: 520px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .chip {
+    background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+    padding: 10px 14px; border-radius: 12px; text-align: left; max-width: 380px; box-shadow: var(--shadow);
+  }
+  .chip:hover { border-color: var(--accent); }
+  .msg { margin: 18px 0; display: flex; }
+  .msg.user { justify-content: flex-end; }
+  .msg.user .bubble {
+    background: var(--user); color: var(--user-ink); padding: 10px 16px;
+    border-radius: 18px 18px 4px 18px; max-width: 80%; white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .msg.bot .body { width: 100%; }
+  .md { overflow-wrap: anywhere; }
+  .md p { margin: 0 0 12px; }
+  .md ul, .md ol { margin: 0 0 12px; padding-left: 22px; }
+  .md a { color: var(--accent); }
+  .md table { border-collapse: collapse; margin: 0 0 12px; display: block; overflow-x: auto; }
+  .md th, .md td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; }
+  .md code { background: var(--bar-bg); padding: 1px 5px; border-radius: 5px; font-size: .9em; }
+  .md h3 { font-size: 1.05em; margin: 18px 0 8px; }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 16px 0; }
+  .activity {
+    border-left: 2px solid var(--line); margin: 6px 0 14px; padding: 2px 0 2px 12px;
+    color: var(--muted); font-size: 14px;
+  }
+  .activity div { padding: 2px 0; }
+  .activity div::before { content: "✓ "; color: var(--accent); }
+  .activity div.live::before { content: ""; }
+  .activity div.live { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  .typing { display: inline-flex; gap: 4px; padding: 8px 0; }
+  .typing span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: bounce 1.2s infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .15s; } .typing span:nth-child(3) { animation-delay: .3s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: none; opacity: .4; } 30% { transform: translateY(-4px); opacity: 1; } }
+  .error { color: var(--unlikely); font-size: 14px; margin: 6px 0; }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 20px;
+    margin: 8px 0 16px; box-shadow: var(--shadow);
+  }
+  .card-top { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+  .ring { --pct: 0; --col: var(--accent); width: 96px; height: 96px; border-radius: 50%; flex: none;
+    background: conic-gradient(var(--col) calc(var(--pct) * 1%), var(--bar-bg) 0);
+    display: grid; place-items: center; }
+  .ring-inner { width: 76px; height: 76px; border-radius: 50%; background: var(--panel);
+    display: grid; place-items: center; text-align: center; line-height: 1.1; }
+  .ring-inner b { font-size: 26px; } .ring-inner small { color: var(--muted); font-size: 11px; display: block; }
+  .card-title { flex: 1; min-width: 200px; }
+  .card-title h3 { margin: 0 0 6px; font-size: 17px; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    color: #fff; margin-right: 8px; }
+  .meta { color: var(--muted); font-size: 13px; }
+  .dims { margin: 18px 0 4px; display: grid; gap: 10px; }
+  .dim-row { display: grid; grid-template-columns: 130px 1fr 40px; gap: 10px; align-items: center; font-size: 14px; }
+  .dim-row > span { text-transform: capitalize; }
+  .bar { height: 8px; background: var(--bar-bg); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
+  .dim-why { grid-column: 1 / -1; color: var(--muted); font-size: 13px; margin: -4px 0 2px; }
+  details { border-top: 1px solid var(--line); padding: 10px 0 0; margin-top: 12px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details ul { margin: 8px 0 0; padding-left: 20px; font-size: 14px; }
+  details p { margin: 8px 0 0; font-size: 14px; }
+
+  footer { border-top: 1px solid var(--line); background: var(--panel); padding: 12px 16px 16px; }
+  form { max-width: 820px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea {
+    flex: 1; resize: none; font: inherit; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; max-height: 200px; outline: none;
+  }
+  textarea:focus { border-color: var(--accent); }
+  .send {
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px;
+    height: 46px; padding: 0 18px; font-weight: 600;
+  }
+  .send:disabled { opacity: .5; cursor: default; }
+  .hint { max-width: 820px; margin: 6px auto 0; color: var(--muted); font-size: 12px; text-align: center; }
+  @media (max-width: 560px) {
+    header { padding: 10px 16px; }
+    .dim-row { grid-template-columns: 100px 1fr 34px; }
+    .msg.user .bubble { max-width: 92%; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="logo">$</div>Would it Sell?</div>
+  <button class="ghost" id="new-chat" type="button">New chat</button>
+</header>
+
+<main id="scroller">
+  <div class="thread" id="thread">
+    <div class="empty" id="empty">
+      <h1>Got an idea? Let's see if it sells.</h1>
+      <p>Describe a business, product, app or service. I research live market data, competitors and pricing,
+        then we talk it through and score it together.</p>
+      <div class="chips">
+        <button class="chip" type="button">A mobile coffee cart for office parks in Austin, about $15k to start</button>
+        <button class="chip" type="button">An app that reminds renters when their lease clauses matter</button>
+        <button class="chip" type="button">Handmade ceramic planters sold on Etsy and at local markets</button>
+        <button class="chip" type="button">A smart pet feeder that recognizes which pet is eating</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <form id="form">
+    <textarea id="input" rows="1" placeholder="Describe your idea or ask a follow-up..." autofocus></textarea>
+    <button class="send" id="send" type="submit">Send</button>
+  </form>
+  <div class="hint">Enter to send, Shift+Enter for a new line. Scores are estimates, so test with real customers.</div>
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const thread = $("thread"), input = $("input"), sendBtn = $("send"), scroller = $("scroller");
+let sessionId = null, busy = false;
+
+const VERDICTS = {
+  strong_go: ["Strong go", "var(--go)"], promising: ["Promising", "var(--promising)"],
+  risky: ["Risky", "var(--risky)"], unlikely: ["Unlikely", "var(--unlikely)"],
+};
+const DIM_ORDER = ["market_demand", "monetization", "competition", "feasibility", "timing"];
+
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+}
+// Small, safe Markdown renderer: everything is escaped first, then a known subset is formatted.
+function inline(t) {
+  return t
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>');
+}
+function markdown(text) {
+  const lines = esc(text).split("\n"), out = [];
+  let list = null, para = [], table = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${inline(para.join("<br>"))}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  const flushTable = () => {
+    if (!table.length) return;
+    const rows = table.filter((r) => !/^\|?\s*:?-{2,}/.test(r)).map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
+    out.push(`<table>${rows.map((r, i) => `<tr>${r.map((c) => i ? `<td>${c}</td>` : `<th>${c}</th>`).join("")}</tr>`).join("")}</table>`);
+    table = [];
+  };
+  const flushAll = () => { flushPara(); flushList(); flushTable(); };
+  for (const line of lines) {
+    let m;
+    if (/^\s*\|.*\|\s*$/.test(line)) { flushPara(); flushList(); table.push(line.trim()); continue; }
+    flushTable();
+    if (!line.trim()) { flushPara(); flushList(); }
+    else if ((m = line.match(/^(#{1,4})\s+(.*)/))) { flushAll(); out.push(`<h3>${inline(m[2])}</h3>`); }
+    else if ((m = line.match(/^\s*[-*•]\s+(.*)/)) || (m = line.match(/^\s*\d+[.)]\s+(.*)/))) {
+      flushPara();
+      const tag = /^\s*\d/.test(line) ? "ol" : "ul";
+      if (!list || list.tag !== tag) { flushList(); list = {tag, items: []}; }
+      list.items.push(m[1]);
+    }
+    else if (/^-{3,}$/.test(line.trim())) { flushAll(); out.push("<hr>"); }
+    else { flushList(); para.push(line); }
+  }
+  flushAll();
+  return out.join("");
+}
+function safeUrl(u) { return /^https?:\/\//i.test(u) ? u : "#"; }
+function nearBottom() { return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120; }
+function scrollDown(force) { if (force || nearBottom()) scroller.scrollTop = scroller.scrollHeight; }
+function scoreColor(v) { return v >= 7 ? "var(--go)" : v >= 5 ? "var(--promising)" : v >= 3 ? "var(--risky)" : "var(--unlikely)"; }
+
+async function ensureSession() {
+  if (sessionId) return sessionId;
+  const r = await fetch("/api/sessions", {method: "POST"});
+  sessionId = (await r.json()).session_id;
+  return sessionId;
+}
+
+function addUser(text) {
+  $("empty")?.remove();
+  const el = document.createElement("div");
+  el.className = "msg user";
+  el.innerHTML = `<div class="bubble">${esc(text)}</div>`;
+  thread.appendChild(el);
+  scrollDown(true);
+}
+
+function botMessage() {
+  const el = document.createElement("div");
+  el.className = "msg bot";
+  el.innerHTML = `<div class="body"></div>`;
+  thread.appendChild(el);
+  const body = el.firstChild;
+  const typing = document.createElement("div");
+  typing.className = "typing";
+  typing.innerHTML = "<span></span><span></span><span></span>";
+  body.appendChild(typing);
+
+  let textEl = null, text = "", activity = null, pending = false;
+  const clearTyping = () => typing.remove();
+  const flush = () => { pending = false; if (textEl) textEl.innerHTML = markdown(text); scrollDown(); };
+  const settleActivity = () => { activity?.querySelector(".live")?.classList.remove("live"); activity = null; };
+
+  return {
+    text(chunk) {
+      clearTyping(); settleActivity();
+      if (!textEl) { textEl = document.createElement("div"); textEl.className = "md"; body.appendChild(textEl); text = ""; }
+      text += chunk;
+      if (!pending) { pending = true; requestAnimationFrame(flush); }
+    },
+    status(label) {
+      clearTyping();
+      if (textEl) { flush(); textEl = null; }
+      if (!activity) { activity = document.createElement("div"); activity.className = "activity"; body.appendChild(activity); }
+      activity.querySelector(".live")?.classList.remove("live");
+      const line = document.createElement("div");
+      line.className = "live"; line.textContent = label;
+      activity.appendChild(line);
+      scrollDown();
+    },
+    scorecard(report) {
+      clearTyping(); settleActivity();
+      if (textEl) { flush(); textEl = null; }
+      body.appendChild(renderCard(report));
+      scrollDown();
+    },
+    error(msg) {
+      clearTyping(); settleActivity();
+      const e = document.createElement("div"); e.className = "error"; e.textContent = msg;
+      body.appendChild(e); scrollDown();
+    },
+    done() { clearTyping(); settleActivity(); if (textEl) flush(); },
+  };
+}
+
+function list(items, fn = esc) {
+  return items?.length ? `<ul>${items.map((i) => `<li>${fn(i)}</li>`).join("")}</ul>` : "<p>None listed.</p>";
+}
+
+function renderCard(report) {
+  const a = report.assessment;
+  const [label, color] = VERDICTS[report.verdict] || [report.verdict, "var(--accent)"];
+  const dims = [...a.dimensions].sort((x, y) => DIM_ORDER.indexOf(x.name) - DIM_ORDER.indexOf(y.name));
+  const card = document.createElement("div");
+  card.className = "card";
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="ring" style="--pct:${report.overall_score};--col:${color}">
+        <div class="ring-inner"><div><b>${report.overall_score}</b><small>/ 100</small></div></div>
+      </div>
+      <div class="card-title">
+        <h3>${esc(a.idea_summary)}</h3>
+        <span class="badge" style="background:${color}">${esc(label)}</span>
+        <span class="meta">${esc(a.category.replace("_", " "))} · ${esc(a.confidence)} confidence</span>
+      </div>
+    </div>
+    <div class="dims">${dims.map((d) => {
+      const s = Math.max(0, Math.min(10, d.score));
+      return `<div class="dim-row"><span>${esc(d.name.replace("_", " "))}</span>
+        <div class="bar"><i style="width:${s * 10}%;background:${scoreColor(s)}"></i></div><b>${s}/10</b>
+        <div class="dim-why">${esc(d.rationale)}</div></div>`;
+    }).join("")}</div>
+    <details open><summary>Test it cheaply first</summary>${list(a.validation_steps)}</details>
+    <details><summary>Customers and money</summary>
+      ${list(a.target_customers)}
+      <p><b>Pricing benchmark:</b> ${esc(a.pricing_benchmark)}</p>
+      <p><b>Revenue model:</b> ${esc(a.revenue_model)}</p></details>
+    <details><summary>Competitors (${a.competitors.length})</summary>
+      ${list(a.competitors, (c) => `<b>${esc(c.name)}</b>: ${esc(c.note)}`)}</details>
+    <details><summary>Key risks</summary>${list(a.key_risks)}</details>
+    <details><summary>Sources (${a.sources.length})</summary>
+      ${list(a.sources, (s) => `<a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener">${esc(s.title)}</a>`)}</details>`;
+  return card;
+}
+
+async function send(text) {
+  if (busy || !text.trim()) return;
+  busy = true; sendBtn.disabled = true;
+  addUser(text);
+  input.value = ""; autosize();
+  const bot = botMessage();
+  try {
+    await ensureSession();
+    let r = await fetch("/api/chat", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({session_id: sessionId, message: text}),
+    });
+    if (r.status === 404) {  // server restarted: start a fresh conversation
+      sessionId = null; await ensureSession();
+      r = await fetch("/api/chat", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({session_id: sessionId, message: text})});
+    }
+    if (!r.ok) { bot.error((await r.json()).detail || `Error ${r.status}`); return; }
+    const reader = r.body.getReader(), decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, {stream: true});
+      let i;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const raw = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (!raw.startsWith("data: ")) continue;
+        const ev = JSON.parse(raw.slice(6));
+        if (ev.type === "text") bot.text(ev.text);
+        else if (ev.type === "status") bot.status(ev.text);
+        else if (ev.type === "scorecard") bot.scorecard(ev.report);
+        else if (ev.type === "error") bot.error(ev.text);
+      }
+    }
+  } catch (err) {
+    bot.error("Connection problem. Check that the server is running and try again.");
+  } finally {
+    bot.done();
+    busy = false; sendBtn.disabled = false; input.focus();
+  }
+}
+
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 200) + "px"; }
+input.addEventListener("input", autosize);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }
+});
+$("form").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
+document.querySelectorAll(".chip").forEach((c) => c.addEventListener("click", () => send(c.textContent)));
+$("new-chat").addEventListener("click", () => {
+  if (busy) return;
+  sessionId = null;
+  location.reload();
+});
+</script>
+</body>
+</html>

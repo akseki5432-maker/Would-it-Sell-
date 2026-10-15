@@ -1,72 +1,103 @@
 # Would it Sell?
 
-Describe an idea (a business, a physical product, a software tool or a service) and get an
-evidence-based estimate of whether it can make money, built from **live web research**.
+**Chat with an AI market analyst** about your idea (a business, a physical product, an app or a
+service). It researches **live market data**, talks it through with you over as many messages as you
+like, and scores whether the idea can make money.
 
 ```
-$ would-it-sell "Subscription meal-prep kits for gym-goers" --context "Austin TX, $5k budget, solo founder"
+You > A mobile coffee cart for office parks in Austin, about $15k to start
 
-Overall score: 71/100
-Verdict: PROMISING - worth validating with real customers
-Confidence: medium
+Analyst > Love it. A couple of things matter a lot here, so let me dig in...
+  ... Searching the web: Austin office park coffee cart permits
+  ... Reading Reddit discussions: coffee cart business
+  ... Pulling World Bank economic data: US
+  ... Running the numbers
+**Demand is real**: ...
 
-Scores:
-  market demand  [########..] 8/10  ...
-  monetization   [########..] 8/10  ...
-  competition    [######....] 6/10  ...
-  ...
-Validate next (cheap experiments):
-  - Pre-sell 20 weekly boxes at one gym
-Sources:
-  - ...
+[scorecard: 68/100 - PROMISING]
+
+You > What if I sold to construction sites instead?
+Analyst > Interesting pivot. Let me check...
 ```
 
-## How it works
+## Two ways to chat
 
-1. **Research.** Claude runs live web searches on demand signals, competitors and their prices,
-   costs, regulation and market trends, then writes cited research notes.
-2. **Assess.** A second call turns those notes into a structured assessment. It scores five
-   dimensions from 0 to 10 and lists target customers, competitors, a pricing benchmark, risks,
-   cheap validation experiments and sources.
-3. **Score.** The code (not the model) computes the 0-100 score as a weighted average, so the
-   number is always explainable:
+```bash
+would-it-sell web    # opens a polished chat in your browser (recommended)
+would-it-sell        # chat right in the terminal
+```
 
-| Dimension     | Weight |
-|---------------|--------|
-| market_demand | 30%    |
-| monetization  | 25%    |
-| competition   | 15%    |
-| feasibility   | 15%    |
-| timing        | 15%    |
+In the browser you get formatted replies, a live log of what the analyst is researching, and a
+visual **scorecard card** with a 0-100 score, a verdict, per-dimension bars, competitors, risks,
+sources and cheap experiments to run.
 
-Verdicts: `strong_go` ≥ 75, `promising` ≥ 60, `risky` ≥ 40, otherwise `unlikely`.
+Terminal commands: `/new` starts over, `/score` shows the last scorecard, `/quit` exits.
 
-> **Reality check:** no tool can actually predict success. This tool collects and organizes market
-> evidence quickly. Treat the verdict as a hypothesis and test it with the validation steps it
-> suggests, such as pre-sales, landing pages and customer interviews.
+You can still get a one-shot report:
+
+```bash
+would-it-sell "Handmade ceramic planters on Etsy" --context "I own a kiln" --json > report.json
+```
+
+## Where the data comes from
+
+The analyst decides which sources fit your idea and runs them in parallel:
+
+| Source | What it tells you | Key needed? |
+|---|---|---|
+| **Web search** + **web fetch** | Competitors, their prices, reviews, regulation, news | No (included with Claude) |
+| **Reddit** | Which communities discuss the problem, and how engaged they are | No |
+| **Hacker News** | Tech-community attention, this year vs last year | No |
+| **Wikipedia pageviews** | 24-month public-interest trend (a stable Google Trends proxy) | No |
+| **GitHub** | How many open-source tools already do this (for software ideas) | No |
+| **World Bank** | Population, GDP per capita, inflation and internet reach for a country | No |
+| **Unit-economics calculator** | Margin, break-even volume, LTV:CAC, payback (exact math, no guessing) | No |
+
+If one source is down, the analyst carries on with the others.
+
+## How scoring works
+
+Whenever the analyst has evaluated an idea, it records a scorecard. It gives each of five
+dimensions a score from 0 to 10, and the **code, not the AI**, computes the overall score using
+fixed weights. That way the number is always explainable:
+
+| Dimension | Weight |
+|---|---|
+| Market demand | 30% |
+| Monetization | 25% |
+| Competition (10 = open market) | 15% |
+| Feasibility | 15% |
+| Timing | 15% |
+
+Verdicts: **Strong go** ≥ 75, **Promising** ≥ 60, **Risky** ≥ 40, otherwise **Unlikely**.
+Change the idea mid-conversation, and the analyst re-scores it.
+
+> **Reality check:** nobody can predict success. This tool gathers and organizes market evidence
+> fast. Treat the verdict as a hypothesis and test it with the cheap experiments it suggests.
 
 ## Setup
 
 ```bash
 pip install -e ".[dev]"
 export ANTHROPIC_API_KEY=sk-ant-...
+would-it-sell web
 ```
 
-## Usage
-
-```bash
-would-it-sell "A smart pet feeder that detects which pet is eating"
-would-it-sell "Mobile bike repair van" --context "Lisbon, $20k budget" --json > report.json
-echo "AI bookkeeping for food trucks" | python -m would_it_sell
-```
+Uses Claude Opus 5.5 with adaptive thinking, prompt caching (long chats stay cheap), and automatic
+model fallback if a request is declined.
 
 From Python:
 
 ```python
-from would_it_sell import analyze
+from would_it_sell.chat import ChatSession
 
-report = analyze("Handmade ceramic planters sold on Etsy", context="I already own a kiln")
-print(report.overall_score, report.verdict)
+chat = ChatSession()
+for event in chat.send("A subscription box for indoor plant care"):
+    if event["type"] == "text":
+        print(event["text"], end="")
+for event in chat.send("I'm in Berlin, budget 5k euros"):
+    ...
+print(chat.latest_report)
 ```
 
 ## Development
@@ -75,10 +106,22 @@ print(report.overall_score, report.verdict)
 pytest
 ```
 
-The tests use a fake client, so they need no API key or network.
+The tests use a scripted fake client and mocked HTTP, so they need no API key or network.
+
+Project layout:
+
+```
+would_it_sell/
+  chat.py        conversation engine: streaming, tool loop, scorecards
+  sources.py     live data tools (Reddit, HN, Wikipedia, GitHub, World Bank, unit economics)
+  models.py      scorecard schema and scoring weights
+  analyzer.py    one-shot analysis built on the chat engine
+  cli.py         terminal chat and commands
+  web/           FastAPI server and the browser chat page
+```
 
 ## Roadmap ideas
 
-- Add direct data feeds (Google Trends, Reddit, Amazon/Etsy listings, Product Hunt) as extra signals
-- A web UI where you compare several ideas side by side
+- Save conversations and compare several ideas side by side
+- More sources: Google Trends, Amazon/Etsy listings, Product Hunt, app-store reviews
 - Track predictions against real outcomes to calibrate the weights

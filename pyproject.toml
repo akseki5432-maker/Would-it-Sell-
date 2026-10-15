@@ -4,11 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "would-it-sell"
-version = "0.1.0"
-description = "Research an idea on the live web and estimate whether it can make money."
+version = "0.2.0"
+description = "Chat with an AI market analyst that uses live data to judge whether an idea can make money."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["anthropic>=1.14", "pydantic>=2"]
+dependencies = [
+    "anthropic>=1.14",
+    "pydantic>=2",
+    "httpx>=0.27",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
@@ -17,4 +23,7 @@ dev = ["pytest>=8"]
 would-it-sell = "would_it_sell.cli:main"
 
 [tool.setuptools]
-packages = ["would_it_sell"]
+packages = ["would_it_sell", "would_it_sell.web"]
+
+[tool.setuptools.package-data]
+"would_it_sell.web" = ["static/*"]
