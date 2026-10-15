@@ -1,0 +1,491 @@
+<title>Would it Sell?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  /* Layout: one-screen chat. Header, scrolling ledger of messages, composer pinned below. */
+  :root {
+    --bg: #f3f5f2; --panel: #ffffff; --ink: #18211d; --muted: #5f6b65; --line: #dde3df;
+    --accent: #17694f; --accent-ink: #ffffff; --accent-soft: #e2efe9; --user: #17694f; --user-ink: #ffffff;
+    --go: #1d8a4f; --promising: #2f6fc6; --risky: #b97512; --unlikely: #be3d2a; --track: #e7ece9;
+    --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", sans-serif;
+    --body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121815; --panel: #1a221e; --ink: #e6ece8; --muted: #93a19a; --line: #2a3530;
+      --accent: #4cbf93; --accent-ink: #0d1814; --accent-soft: #1d3029; --user: #245d4a; --user-ink: #e6ece8;
+      --go: #52c483; --promising: #6ea4ee; --risky: #e9a94a; --unlikely: #ef7461; --track: #26302b;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121815; --panel: #1a221e; --ink: #e6ece8; --muted: #93a19a; --line: #2a3530;
+    --accent: #4cbf93; --accent-ink: #0d1814; --accent-soft: #1d3029; --user: #245d4a; --user-ink: #e6ece8;
+    --go: #52c483; --promising: #6ea4ee; --risky: #e9a94a; --unlikely: #ef7461; --track: #26302b;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body);
+    display: flex; flex-direction: column;
+  }
+  .gutter { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .wrap { max-width: 780px; margin: 0 auto; width: 100%; }
+  button, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header { background: var(--panel); border-bottom: 1px solid var(--line); padding-block: 10px; }
+  header .wrap { display: flex; align-items: center; gap: 12px; }
+  .brand { font: 800 19px/1 var(--display); letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .mark { width: 30px; height: 30px; border-radius: 8px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font: 800 17px/1 var(--display); flex: none; }
+  .depth { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 5px 8px; font-size: 13px; }
+  .ghost { border: 1px solid var(--line); background: transparent; border-radius: 999px; padding: 5px 14px; font-size: 14px; }
+  .ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+  main { flex: 1; overflow-y: auto; }
+  .thread { padding-block: 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  .intro { display: grid; gap: 18px; }
+  .intro h1 { font: 800 clamp(28px, 6vw, 40px)/1.08 var(--display); letter-spacing: -0.025em; margin: 0; text-wrap: balance; }
+  .intro p { margin: 0; color: var(--muted); max-width: 62ch; }
+  .chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+  .chip { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; line-height: 1.45; }
+  .chip:hover { border-color: var(--accent); }
+  .label { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .note { font-size: 13px; color: var(--muted); background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; }
+
+  .msg-user { align-self: flex-end; max-width: 82%; background: var(--user); color: var(--user-ink);
+    padding: 9px 15px; border-radius: 16px 16px 4px 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .msg-bot { display: grid; gap: 10px; min-width: 0; }
+  .md { overflow-wrap: anywhere; min-width: 0; }
+  .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
+  .md p, .md ul, .md ol { margin: 0 0 10px; }
+  .md ul, .md ol { padding-left: 22px; }
+  .md h3 { font: 600 16px/1.3 var(--display); margin: 16px 0 6px; }
+  .md a { color: var(--accent); }
+  .md code { font: 13px var(--mono); background: var(--track); padding: 1px 5px; border-radius: 4px; }
+  .md hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
+  .tablewrap { overflow-x: auto; margin: 0 0 10px; }
+  .md table { border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .md th, .md td { border: 1px solid var(--line); padding: 5px 10px; text-align: left; }
+  .steps { font-size: 13px; color: var(--muted); border-left: 2px solid var(--line); padding-left: 12px; display: grid; gap: 2px; }
+  .thinking { color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .err { color: var(--unlikely); font-size: 14px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 16px; min-width: 0; }
+  .card-head { display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
+  .ring { width: 92px; height: 92px; border-radius: 50%; flex: none; display: grid; place-items: center;
+    background: conic-gradient(var(--col) calc(var(--pct) * 1%), var(--track) 0); }
+  .ring > div { width: 72px; height: 72px; border-radius: 50%; background: var(--panel); display: grid; place-items: center; text-align: center; line-height: 1; }
+  .ring b { font: 800 27px/1 var(--display); font-variant-numeric: tabular-nums; }
+  .ring small { display: block; font: 500 11px var(--mono); color: var(--muted); margin-top: 3px; }
+  .card-title { flex: 1; min-width: 190px; display: grid; gap: 6px; }
+  .card-title h3 { margin: 0; font: 600 17px/1.3 var(--display); text-wrap: balance; }
+  .stamp { display: inline-block; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase;
+    padding: 5px 9px; border-radius: 5px; border: 1.5px solid var(--col); color: var(--col); }
+  .meta { font-size: 13px; color: var(--muted); }
+  .dims { display: grid; gap: 9px; }
+  .dim { display: grid; grid-template-columns: minmax(96px, 128px) 1fr auto; gap: 4px 12px; align-items: center; font-size: 14px; }
+  .dim .w { font: 500 11px var(--mono); color: var(--muted); }
+  .bar { height: 8px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 99px; }
+  .dim b { font-variant-numeric: tabular-nums; font-size: 13px; min-width: 38px; text-align: right; }
+  .dim .why { grid-column: 1 / -1; color: var(--muted); font-size: 13px; line-height: 1.45; }
+  details { border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 14px; }
+  details ul { margin: 8px 0 0; padding-left: 20px; font-size: 14px; }
+  details p { margin: 6px 0 0; font-size: 14px; }
+
+  footer { background: var(--panel); border-top: 1px solid var(--line); padding-block: 12px 14px; }
+  form { display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; min-width: 0; resize: none; background: var(--bg); border: 1px solid var(--line);
+    border-radius: 12px; padding: 11px 14px; max-height: 180px; line-height: 1.45; }
+  textarea:focus { border-color: var(--accent); outline: none; }
+  .send { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; height: 44px; padding: 0 18px; font-weight: 600; flex: none; }
+  .send:disabled, textarea:disabled { opacity: .55; cursor: default; }
+  .hint { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  @media (prefers-reduced-motion: reduce) { .dot { animation: none; } }
+  @media (max-width: 480px) { .depth { max-width: 110px; } .msg-user { max-width: 92%; } }
+</style>
+
+<header class="gutter">
+  <div class="wrap">
+    <div class="brand"><span class="mark">$</span>Would it Sell?</div>
+    <select class="depth" id="depth" aria-label="How deeply the analyst thinks">
+      <option value="quick">Quick replies</option>
+      <option value="default" selected>Thorough</option>
+      <option value="complex">Deep analysis</option>
+    </select>
+    <button class="ghost" id="newchat" type="button">New chat</button>
+  </div>
+</header>
+
+<main id="scroller">
+  <div class="wrap gutter thread" id="thread">
+    <section class="intro" id="intro">
+      <h1>Got an idea? Let's find out if it sells.</h1>
+      <p>Describe a business, product, app or service. Your analyst asks what it needs to know, sizes up demand,
+        competitors and margins, runs the numbers, and scores the idea out of 100. Keep chatting to test pivots
+        and new prices.</p>
+      <div class="chips" id="chips">
+        <button class="chip" type="button">A mobile coffee cart for office parks in Austin, about $15k to start</button>
+        <button class="chip" type="button">An app that warns renters when a clause in their lease is about to matter</button>
+        <button class="chip" type="button">Handmade ceramic planters sold on Etsy and at weekend markets</button>
+        <button class="chip" type="button">A smart pet feeder that recognizes which pet is eating</button>
+      </div>
+      <div class="label">Example scorecard</div>
+      <div id="example"></div>
+      <div class="note" id="notice">The analyst works from Claude's own market knowledge, which can be out of date, and
+        cannot browse the web from this page. It flags what you should verify. Replies use your Claude account's usage.</div>
+    </section>
+  </div>
+</main>
+
+<footer class="gutter">
+  <div class="wrap">
+    <form id="form">
+      <textarea id="input" aria-label="Message" rows="1" placeholder="Describe your idea or ask a follow-up..."></textarea>
+      <button class="send" id="send" type="submit">Send</button>
+    </form>
+    <div class="hint" id="hint">Enter sends, Shift+Enter adds a line. Scores are estimates: test with real customers before you spend money.</div>
+  </div>
+</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const thread = $("thread"), input = $("input"), sendBtn = $("send"), scroller = $("scroller");
+const STORE_KEY = "would-it-sell-chat-v1";
+
+const WEIGHTS = { market_demand: 0.30, monetization: 0.25, competition: 0.15, feasibility: 0.15, timing: 0.15 };
+const DIM_LABEL = { market_demand: "Market demand", monetization: "Monetization", competition: "Competition",
+  feasibility: "Feasibility", timing: "Timing" };
+const VERDICT = {
+  strong_go: ["Strong go", "var(--go)"], promising: ["Promising", "var(--promising)"],
+  risky: ["Risky", "var(--risky)"], unlikely: ["Unlikely", "var(--unlikely)"],
+};
+
+const RULES = `You are "Would it Sell?", a friendly, candid market analyst inside a chat app. People bring ideas \
+(businesses, physical products, software tools, services) and you help them judge whether the idea can make money, \
+over an ongoing conversation.
+
+How to work:
+- Talk like a sharp advisor. Keep replies focused: short paragraphs, bullets, bold key numbers. Reply in the user's language.
+- If a crucial detail is missing (where they sell, target customer, budget, price), ask one or two quick questions. \
+If the idea is clear enough, give your read right away and ask while you share it.
+- You cannot browse the web here. Use what you know about the market, competitors and typical prices, say roughly \
+how current that knowledge is, and list the specific facts the user should verify (competitor prices, permits, demand checks).
+- When you discuss price, costs or profit and the unit_economics tool is available, use it for exact numbers.
+- After you have evaluated an idea properly, include ONE scorecard block in your reply, exactly in this format \
+(the app hides it and shows a visual card, so don't repeat its contents in prose):
+\`\`\`scorecard
+{"idea_summary": "...", "category": "business|physical_product|software_tool|service|other",
+ "confidence": "low|medium|high",
+ "dimensions": {"market_demand": {"score": 0-10, "why": "..."}, "monetization": {...}, "competition": {...},
+   "feasibility": {...}, "timing": {...}},
+ "target_customers": ["..."], "competitors": [{"name": "...", "note": "what they sell and their price"}],
+ "pricing_benchmark": "...", "revenue_model": "...", "key_risks": ["..."], "validation_steps": ["cheap experiment"]}
+\`\`\`
+Competition: 10 means an open market, 0 means saturated with strong, cheap players. The app computes the overall score \
+(weights: demand 30%, monetization 25%, competition, feasibility and timing 15% each). After the block, explain the \
+verdict briefly. Score again with a new block whenever the idea changes meaningfully.
+- Be honest. Say clearly when the evidence points against an idea and suggest pivots that could work. Nobody can \
+predict success, so always end an evaluation with cheap ways to test it with real customers.`;
+
+const EXAMPLE = {
+  idea_summary: "Mobile coffee cart serving office parks in Austin", category: "business", confidence: "medium",
+  dimensions: {
+    market_demand: { score: 7, why: "Office parks with no on-site café create a captive morning rush." },
+    monetization: { score: 6, why: "Around $5 drinks at roughly 70% gross margin, but sales stop at weekends." },
+    competition: { score: 5, why: "Drive-thru chains nearby. Being on-site is the edge." },
+    feasibility: { score: 7, why: "A $15k budget covers a used cart, an espresso machine and permits." },
+    timing: { score: 6, why: "Hybrid work means busy Tuesdays to Thursdays and quiet Mondays and Fridays." },
+  },
+  target_customers: ["Office workers in parks without a café", "Property managers who want an amenity"],
+  competitors: [{ name: "Nearby drive-thru chains", note: "$4-6 drinks, a 5-10 minute drive away" }],
+  pricing_benchmark: "$4.50-6.00 per specialty drink", revenue_model: "Per-drink sales plus catered meeting orders",
+  key_risks: ["Permits and park access rules", "Weekday-only revenue"],
+  validation_steps: ["Ask 3 property managers for a 2-week trial spot", "Pre-sell a 10-drink punch card"],
+};
+
+// ---------- scoring ----------
+function clamp(n) { n = Number(n); return Number.isFinite(n) ? Math.max(0, Math.min(10, Math.round(n))) : 0; }
+function overall(dims) {
+  return Math.round(10 * Object.entries(WEIGHTS).reduce((s, [k, w]) => s + w * clamp(dims?.[k]?.score), 0));
+}
+function verdictFor(score) { return score >= 75 ? "strong_go" : score >= 60 ? "promising" : score >= 40 ? "risky" : "unlikely"; }
+function barColor(v) { return v >= 7 ? "var(--go)" : v >= 5 ? "var(--promising)" : v >= 3 ? "var(--risky)" : "var(--unlikely)"; }
+
+// ---------- rendering helpers ----------
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function inline(t) {
+  return t
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+}
+function markdown(text) {
+  const lines = esc(text).split("\n"), out = [];
+  let list = null, para = [], table = [];
+  const fp = () => { if (para.length) { out.push(`<p>${inline(para.join("<br>"))}</p>`); para = []; } };
+  const fl = () => { if (list) { out.push(`<${list.tag}>${list.items.map((i) => `<li>${inline(i)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  const ft = () => {
+    if (!table.length) return;
+    const rows = table.filter((r) => !/^\|?\s*:?-{2,}/.test(r)).map((r) => r.replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
+    out.push(`<div class="tablewrap"><table>${rows.map((r, i) => `<tr>${r.map((c) => i ? `<td>${c}</td>` : `<th>${c}</th>`).join("")}</tr>`).join("")}</table></div>`);
+    table = [];
+  };
+  for (const line of lines) {
+    let m;
+    if (/^\s*\|.*\|\s*$/.test(line)) { fp(); fl(); table.push(line.trim()); continue; }
+    ft();
+    if (!line.trim()) { fp(); fl(); }
+    else if ((m = line.match(/^#{1,4}\s+(.*)/))) { fp(); fl(); out.push(`<h3>${inline(m[1])}</h3>`); }
+    else if ((m = line.match(/^\s*[-*•]\s+(.*)/)) || (m = line.match(/^\s*\d+[.)]\s+(.*)/))) {
+      fp();
+      const tag = /^\s*\d/.test(line) ? "ol" : "ul";
+      if (!list || list.tag !== tag) { fl(); list = { tag, items: [] }; }
+      list.items.push(m[1]);
+    } else if (/^-{3,}$/.test(line.trim())) { fp(); fl(); out.push("<hr>"); }
+    else { fl(); para.push(line); }
+  }
+  fp(); fl(); ft();
+  return out.join("");
+}
+function list(items, fn = esc) {
+  return Array.isArray(items) && items.length ? `<ul>${items.map((i) => `<li>${fn(i)}</li>`).join("")}</ul>` : "<p>None listed.</p>";
+}
+
+function renderCard(a) {
+  const score = overall(a.dimensions), v = verdictFor(score), [label, col] = VERDICT[v];
+  const el = document.createElement("div");
+  el.className = "card";
+  el.style.setProperty("--col", col);
+  el.innerHTML = `
+    <div class="card-head">
+      <div class="ring" style="--pct:${score}"><div><div><b>${score}</b><small>/ 100</small></div></div></div>
+      <div class="card-title">
+        <h3>${esc(a.idea_summary || "Your idea")}</h3>
+        <div><span class="stamp">${label}</span></div>
+        <div class="meta">${esc(String(a.category || "other").replace("_", " "))} · ${esc(a.confidence || "low")} confidence</div>
+      </div>
+    </div>
+    <div class="dims">${Object.keys(WEIGHTS).map((k) => {
+      const d = a.dimensions?.[k] || {}, s = clamp(d.score);
+      return `<div class="dim"><span>${DIM_LABEL[k]} <span class="w">${WEIGHTS[k] * 100}%</span></span>
+        <div class="bar"><i style="width:${s * 10}%;background:${barColor(s)}"></i></div><b>${s}/10</b>
+        <div class="why">${esc(d.why || "")}</div></div>`;
+    }).join("")}</div>
+    <details open><summary>Test it cheaply first</summary>${list(a.validation_steps)}</details>
+    <details><summary>Customers and money</summary>${list(a.target_customers)}
+      <p><b>Pricing benchmark:</b> ${esc(a.pricing_benchmark || "Not given")}</p>
+      <p><b>Revenue model:</b> ${esc(a.revenue_model || "Not given")}</p></details>
+    <details><summary>Competitors (${Array.isArray(a.competitors) ? a.competitors.length : 0})</summary>
+      ${list(a.competitors, (c) => `<b>${esc(c?.name)}</b>: ${esc(c?.note)}`)}</details>
+    <details><summary>Key risks</summary>${list(a.key_risks)}</details>`;
+  return el;
+}
+
+// Split a reply into visible text and scorecard blocks (an unfinished block shows as a placeholder).
+function parseReply(text) {
+  const parts = [], re = /```scorecard\s*([\s\S]*?)```/g;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    if (m.index > last) parts.push({ kind: "text", value: text.slice(last, m.index) });
+    let card = null;
+    try { card = JSON.parse(m[1]); } catch { /* malformed: drop the block */ }
+    if (card && typeof card === "object") parts.push({ kind: "card", value: card });
+    last = re.lastIndex;
+  }
+  const rest = text.slice(last), open = rest.indexOf("```scorecard");
+  if (open >= 0) {
+    if (open > 0) parts.push({ kind: "text", value: rest.slice(0, open) });
+    parts.push({ kind: "pending" });
+  } else if (rest) parts.push({ kind: "text", value: rest });
+  return parts.filter((p) => p.kind !== "text" || p.value.trim());
+}
+
+function renderReply(container, text) {
+  container.replaceChildren();
+  for (const p of parseReply(text)) {
+    if (p.kind === "text") { const d = document.createElement("div"); d.className = "md"; d.innerHTML = markdown(p.value); container.append(d); }
+    else if (p.kind === "card") container.append(renderCard(p.value));
+    else { const d = document.createElement("div"); d.className = "thinking"; d.innerHTML = '<span class="dot"></span>Building the scorecard...'; container.append(d); }
+  }
+}
+
+// ---------- conversation ----------
+let turns = [];  // [{role, content}] shown and sent; RULES is prepended at call time
+let sample = null, busy = false, ctl = null, toolsAvailable = false;
+
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(turns.slice(-60))); } catch { /* storage unavailable */ } }
+function load() { try { const t = JSON.parse(localStorage.getItem(STORE_KEY) || "[]"); return Array.isArray(t) ? t : []; } catch { return []; } }
+
+function nearBottom() { return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 140; }
+function scrollDown(force) { if (force || nearBottom()) scroller.scrollTop = scroller.scrollHeight; }
+
+function addUserBubble(text) {
+  $("intro").hidden = true;
+  const el = document.createElement("div"); el.className = "msg-user"; el.textContent = text;
+  thread.append(el);
+}
+function addBotBubble(text) {
+  const el = document.createElement("div"); el.className = "msg-bot";
+  if (text) renderReply(el, text);
+  thread.append(el);
+  return { el, body: el };
+}
+
+function payload() {
+  // Keep the instructions turn plus the most recent turns well under the size limit.
+  let recent = turns.slice(-40);
+  while (recent.length > 1 && JSON.stringify(recent).length > 180000) recent = recent.slice(2);
+  if (recent[0]?.role === "assistant") recent = recent.slice(1);
+  return [{ role: "user", content: RULES }, ...recent];
+}
+
+const unitEconomics = {
+  name: "unit_economics",
+  description: "Exact margins, break-even volume, lifetime value, LTV:CAC and payback from price and cost assumptions. Returns JSON numbers. Use whenever you discuss pricing or profit.",
+  inputSchema: {
+    type: "object",
+    properties: {
+      price: { type: "number", description: "Price per unit or per month." },
+      unit_cost: { type: "number", description: "Variable cost per unit or customer-month." },
+      monthly_fixed_costs: { type: "number" }, customer_acquisition_cost: { type: "number" },
+      purchases_per_customer: { type: "number", description: "Purchases or months per customer lifetime." },
+      startup_costs: { type: "number" },
+    },
+    required: ["price", "unit_cost"],
+  },
+  execute(i) {
+    const n = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+    const price = n(i.price), cost = n(i.unit_cost), fixed = n(i.monthly_fixed_costs), cac = n(i.customer_acquisition_cost);
+    const per = n(i.purchases_per_customer, 1), start = n(i.startup_costs);
+    if (!(price > 0)) throw new Error("price must be a positive number");
+    const margin = price - cost, r = (x, p = 2) => Math.round(x * 10 ** p) / 10 ** p;
+    currentSteps?.add("Ran the numbers: price " + price + ", unit cost " + cost);
+    const out = { gross_margin_per_unit: r(margin), gross_margin_pct: r((100 * margin) / price, 1) };
+    if (margin <= 0) return { ...out, warning: "Each sale loses money before fixed costs." };
+    const ltv = margin * per;
+    Object.assign(out, { lifetime_gross_profit_per_customer: r(ltv), break_even_units_per_month: r(fixed / margin, 1) });
+    if (cac) Object.assign(out, { ltv_to_cac_ratio: r(ltv / cac), units_to_recover_cac: r(cac / margin, 1) });
+    if (start) out.units_to_recover_startup_costs = Math.round(start / margin);
+    return out;
+  },
+};
+
+let currentSteps = null;
+function stepsBox(parent) {
+  const box = document.createElement("div"); box.className = "steps"; box.hidden = true; parent.prepend(box);
+  return { add(t) { const d = document.createElement("div"); d.textContent = "✓ " + t; box.append(d); box.hidden = false; } };
+}
+
+const ERRORS = {
+  not_granted: "Claude access wasn't allowed for this page. Reload the page to be asked again.",
+  sampling_disabled: "Claude isn't available for this account.",
+  rate_limited: "You've hit a usage limit. Wait a little, then send again.",
+  session_expired: "Your Claude session expired. Sign in again, then reload.",
+  refused: "Claude declined that request. Try rephrasing it.",
+  prompt_too_large: "This chat got too long. Start a new chat.",
+  empty_completion: "No reply came back. Try rephrasing.",
+};
+
+async function send(text) {
+  text = text.trim();
+  if (!text || busy || !sample) return;
+  busy = true; setBusy(true);
+  addUserBubble(text);
+  turns.push({ role: "user", content: text }); save();
+  input.value = ""; autosize();
+
+  const { el, body } = addBotBubble("");
+  const reply = document.createElement("div"); reply.className = "msg-bot"; reply.style.gap = "10px"; body.append(reply);
+  reply.innerHTML = '<div class="thinking"><span class="dot"></span>Thinking it through...</div>';
+  currentSteps = stepsBox(body);
+  scrollDown(true);
+
+  ctl = new AbortController();
+  let shown = "";
+  try {
+    const opts = {
+      cache: false, signal: ctl.signal, modelTier: $("depth").value,
+      onText: ({ text: t }) => { shown = t; renderReply(reply, t); scrollDown(); },
+    };
+    if (toolsAvailable) { delete opts.cache; opts.tools = [unitEconomics]; }
+    const { text: answer, truncated } = await sample(payload(), opts);
+    renderReply(reply, answer);
+    turns.push({ role: "assistant", content: answer }); save();
+    if (truncated) addNote(body, "This reply was cut short. Ask me to continue.");
+  } catch (e) {
+    const kept = e?.code === "refused" ? "" : (e?.text ?? shown);
+    if (kept) { renderReply(reply, kept); turns.push({ role: "assistant", content: kept }); save(); }
+    else reply.remove();
+    if (e?.code !== "cancelled") addNote(body, ERRORS[e?.code] || "Something interrupted the reply. Send your message again.", true);
+    if (["not_granted", "sampling_disabled", "session_expired"].includes(e?.code)) disableChat(ERRORS[e.code]);
+  } finally {
+    currentSteps = null; ctl = null; busy = false; setBusy(false);
+    if (!el.querySelector(".md, .card, .err")) el.remove();
+    scrollDown();
+  }
+}
+
+function addNote(parent, msg, isErr) {
+  const d = document.createElement("div"); d.className = isErr ? "err" : "meta"; d.textContent = msg; parent.append(d);
+}
+function setBusy(on) {
+  sendBtn.textContent = on ? "Stop" : "Send";
+  sendBtn.type = on ? "button" : "submit";
+  $("newchat").disabled = on;
+  if (!on) input.focus();
+}
+function disableChat(msg) {
+  input.disabled = true; sendBtn.disabled = true;
+  input.placeholder = msg;
+}
+
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 180) + "px"; }
+
+sendBtn.addEventListener("click", (e) => { if (busy) { e.preventDefault(); ctl?.abort(); } });
+$("form").addEventListener("submit", (e) => { e.preventDefault(); send(input.value); });
+input.addEventListener("input", autosize);
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(input.value); }
+});
+$("chips").addEventListener("click", (e) => { const c = e.target.closest(".chip"); if (c) send(c.textContent); });
+$("newchat").addEventListener("click", () => {
+  if (busy) return;
+  turns = []; save();
+  thread.querySelectorAll(".msg-user, .msg-bot").forEach((n) => n.remove());
+  $("intro").hidden = false; scroller.scrollTop = 0; input.focus();
+});
+
+// ---------- boot ----------
+$("example").append(renderCard(EXAMPLE));
+turns = load();
+if (turns.length) {
+  for (const t of turns) t.role === "user" ? addUserBubble(t.content) : addBotBubble(t.content);
+  scrollDown(true);
+}
+input.disabled = true; sendBtn.disabled = true; input.placeholder = "Connecting to Claude...";
+(async () => {
+  try { sample = window.claude ? await window.claude.use("sample") : null; } catch { sample = null; }
+  if (!sample) {
+    disableChat("Open this page inside Claude to chat.");
+    $("notice").textContent = "Chat works when this page is opened on claude.ai, where it can use your Claude account.";
+    return;
+  }
+  try { toolsAvailable = !!(await sample.limits())?.tools; } catch { toolsAvailable = false; }
+  input.disabled = false; sendBtn.disabled = false;
+  input.placeholder = "Describe your idea or ask a follow-up...";
+})();
+</script>
