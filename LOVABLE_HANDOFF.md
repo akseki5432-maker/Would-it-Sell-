@@ -30,7 +30,7 @@ The full source stays in the zip unchanged, for reference.
 >
 > **Backend (`chat` Edge Function)**
 > - Use the official Anthropic TypeScript SDK (`npm:@anthropic-ai/sdk`).
-> - Call `client.messages.stream()` with model `claude-opus-5-5`, `max_tokens: 16000`,
+> - Call `client.messages.stream()` with model `claude-sonnet-5-5`, `max_tokens: 16000`,
 >   `output_config: { effort: "medium" }`, the system prompt from Part 2, the conversation messages, and
 >   the built-in web search tool: `tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 5 }]`.
 > - Stream text deltas to the browser (server-sent events).
