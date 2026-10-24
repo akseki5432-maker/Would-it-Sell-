@@ -1,0 +1,16 @@
+// Cloudflare Workers config for Would it Sell?
+// Deploy: `npx wrangler deploy`. Set the API key once with:
+//   npx wrangler secret put ANTHROPIC_API_KEY
+{
+  "name": "would-it-sell",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  // The chat page. Files here are served directly; everything else goes to the Worker.
+  "assets": { "directory": "worker/public", "binding": "ASSETS" },
+  // Per-visitor limit on chat messages, to protect the API bill.
+  "ratelimits": [
+    { "name": "CHAT_LIMITER", "namespace_id": "1001", "simple": { "limit": 6, "period": 60 } }
+  ],
+  "observability": { "enabled": true }
+}

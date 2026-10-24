@@ -1,0 +1,16 @@
+{
+  "name": "would-it-sell-worker",
+  "private": true,
+  "description": "Would it Sell? on Cloudflare Workers: chat page plus an /api/chat endpoint that calls the Anthropic API.",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.132.1"
+  },
+  "devDependencies": {
+    "wrangler": "4.148.0"
+  }
+}
